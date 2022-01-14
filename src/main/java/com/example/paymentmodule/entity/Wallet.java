@@ -20,5 +20,6 @@ public class Wallet {
     @Column(name = "id", nullable = false)
     private Long userId;
     private double balance;
+    private String name;
 
 }

@@ -3,30 +3,43 @@ package com.example.paymentmodule.controller;
 import com.example.paymentmodule.dto.OrderDto;
 import com.example.paymentmodule.dto.PaymentDto;
 import com.example.paymentmodule.entity.Wallet;
-import com.example.paymentmodule.repo.BalletRepo;
+import com.example.paymentmodule.repo.WalletRepo;
+import com.example.paymentmodule.response.RESTResponse;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import static com.example.paymentmodule.queue.Config.*;
 
 @RestController
-public class BalletController {
+@CrossOrigin("*")
+@RequestMapping("/api/v1/payments")
+public class WalletController {
 
     @Autowired
-    BalletRepo balletRepo;
+    WalletRepo walletRepo;
 
     @Autowired
     RabbitTemplate rabbitTemplate;
 
-//    @RequestMapping(path = "",method = RequestMethod.GET)
-//    public Object find(@RequestParam(name = "userId") int userId){
-//        return balletRepo.findBalletByUserId(Long.valueOf(userId)) == null;
-//    }
+    @RequestMapping(path = "account/{userId}", method = RequestMethod.GET)
+    public Object find(@PathVariable int userId) {
+        Wallet wallet = walletRepo.findBalletByUserId((long) userId);
+        return new  RESTResponse.Success()
+                .addData(wallet)
+                .build();
+    }
 
     public void handlerPayment(OrderDto orderDto) {
-        Wallet ballet = balletRepo.findBalletByUserId(Long.valueOf(orderDto.getUserId()));
         PaymentDto paymentDto = new PaymentDto(orderDto.getOrderId(), orderDto.getUserId());
+        if (orderDto.getUserId() == null) {
+            paymentDto.setMessage("Tài khoản ví không đúng");
+            System.out.println("Tài khoản ví không đúng");
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
+            return;
+        }
+        Wallet ballet = walletRepo.findBalletByUserId(Long.valueOf(orderDto.getUserId()));
+
 
         if (orderDto.getCheckOut() == 1) {
             paymentDto.setMessage("Order đã thanh toán");
@@ -51,15 +64,15 @@ public class BalletController {
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
             return;
         }
-        ballet.setBalance(balance - totalPrice);
         try {
-            balletRepo.save(ballet);
+            ballet.setBalance(balance - totalPrice);
+            walletRepo.save(ballet);
             paymentDto.setMessage("Thanh toán thành công");
             System.out.println("Thanh toán thành công");
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
         } catch (Exception e) {
             ballet.setBalance(balance);
-            balletRepo.save(ballet);
+            walletRepo.save(ballet);
             paymentDto.setMessage("Thanh toán lỗi! Vui lòng thử lại");
             System.out.println("Thanh toán lỗi! Vui lòng thử lại");
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);

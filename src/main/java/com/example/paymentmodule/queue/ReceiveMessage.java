@@ -1,7 +1,7 @@
 package com.example.paymentmodule.queue;
 
 
-import com.example.paymentmodule.controller.BalletController;
+import com.example.paymentmodule.controller.WalletController;
 import com.example.paymentmodule.dto.OrderDto;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,12 +13,13 @@ import static com.example.paymentmodule.queue.Config.QUEUE_ORDER;
 public class ReceiveMessage {
 
     @Autowired
-    BalletController balletController;
+    WalletController balletController;
 
     @RabbitListener(queues = {QUEUE_ORDER})
     public void getInfoOrder(OrderDto orderDto) {
-        balletController.handlerPayment(orderDto);
         System.out.println("Module Payment nhận thông tin order: " + orderDto);
+        balletController.handlerPayment(orderDto);
+
     }
 
 }
