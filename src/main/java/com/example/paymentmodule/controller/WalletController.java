@@ -25,13 +25,13 @@ public class WalletController {
     @RequestMapping(path = "account/{userId}", method = RequestMethod.GET)
     public Object find(@PathVariable int userId) {
         Wallet wallet = walletRepo.findBalletByUserId((long) userId);
-        return new  RESTResponse.Success()
+        return new RESTResponse.Success()
                 .addData(wallet)
                 .build();
     }
 
     public void handlerPayment(OrderDto orderDto) {
-        PaymentDto paymentDto = new PaymentDto(orderDto.getOrderId(), orderDto.getUserId());
+        PaymentDto paymentDto = new PaymentDto(orderDto.getOrderId(), orderDto.getUserId(), orderDto.getDevice_token());
         if (orderDto.getUserId() == null) {
             paymentDto.setMessage("Tài khoản ví không đúng");
             System.out.println("Tài khoản ví không đúng");
@@ -50,6 +50,7 @@ public class WalletController {
 
         if (ballet == null) {
             paymentDto.setMessage("Tài khoản thanh toán không đúng");
+            paymentDto.setCheckOut(0);
             System.out.println("Tài khoản thanh toán không đúng");
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
             return;
@@ -61,6 +62,7 @@ public class WalletController {
         if (totalPrice > balance) {
             paymentDto.setMessage("Số dư ví không đủ");
             System.out.println("Số dư ví không đủ");
+            paymentDto.setCheckOut(0);
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
             return;
         }
@@ -68,6 +70,7 @@ public class WalletController {
             ballet.setBalance(balance - totalPrice);
             walletRepo.save(ballet);
             paymentDto.setMessage("Thanh toán thành công");
+            paymentDto.setCheckOut(1);
             System.out.println("Thanh toán thành công");
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
         } catch (Exception e) {

@@ -14,4 +14,5 @@ public class OrderDto {
     private double totalPrice;
     private int checkOut;
     private int status;
+    private String device_token;
 }

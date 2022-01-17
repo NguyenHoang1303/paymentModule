@@ -19,7 +19,6 @@ public class ReceiveMessage {
     public void getInfoOrder(OrderDto orderDto) {
         System.out.println("Module Payment nhận thông tin order: " + orderDto);
         balletController.handlerPayment(orderDto);
-
     }
 
 }
