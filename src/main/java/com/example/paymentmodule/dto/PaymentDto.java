@@ -11,7 +11,7 @@ public class PaymentDto {
 
     private Long orderId;
     private Long userId;
-    private String checkout;
+    private String paymentStatus;
     private String message;
     private String device_token;
 

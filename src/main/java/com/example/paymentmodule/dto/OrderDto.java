@@ -15,7 +15,7 @@ public class OrderDto {
     private Long userId;
     private HashMap<Long, Integer> productAndQuantity;
     private double totalPrice;
-    private String checkout;
-    private String status;
+    private String paymentStatus;
+    private String orderStatus;
     private String device_token;
 }

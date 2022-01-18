@@ -15,8 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import static com.example.paymentmodule.queue.Config.DIRECT_EXCHANGE;
-import static com.example.paymentmodule.queue.Config.DIRECT_ROUTING_KEY_PAY;
+import static com.example.paymentmodule.queue.Config.*;
 
 @Service
 public class WalletService {
@@ -30,14 +29,19 @@ public class WalletService {
     @Autowired
     RabbitTemplate rabbitTemplate;
 
+    @Transactional
     public void handlerPayment(OrderDto orderDto) {
         PaymentDto paymentDto = new PaymentDto(orderDto.getOrderId(),
                 orderDto.getUserId(), orderDto.getDevice_token());
 
-        if (orderDto.getCheckout() == null) return;
+        if (orderDto.getPaymentStatus() == null) {
+            paymentDto.setMessage("Trạng thái thanh toán không xác định");
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
+            return;
+        }
 
-        if (orderDto.getCheckout().equals(Status.Checkout.REFUND.name())) {
-            handlerOrderRefund(orderDto);
+        if (orderDto.getPaymentStatus().equals(Status.Payment.REFUND.name())) {
+            handlerOrderRefund(orderDto, paymentDto);
             return;
         }
 
@@ -49,45 +53,56 @@ public class WalletService {
 
         if (totalPrice > balance) {
             paymentDto.setMessage("Số dư ví không đủ");
-            paymentDto.setCheckout(Status.Checkout.UNPAID.name());
+            paymentDto.setPaymentStatus(Status.Payment.UNPAID.name());
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
             return;
         }
 
+        TransactionHistory history = TransactionHistory.Builder
+                .aTransactionHistory()
+                .withSenderId(orderDto.getUserId())
+                .withOrderId(orderDto.getOrderId())
+                .withAmount(orderDto.getTotalPrice())
+                .withPaymentType(PaymentType.SENDING.name())
+                .build();
+
         try {
             wallet.setBalance(balance - totalPrice);
-            walletRepo.save(wallet);
-            TransactionHistory history = TransactionHistory.TransactionHistoryBuilder
-                    .aTransactionHistory()
-                    .withSenderId(orderDto.getUserId())
-                    .withOrderId(orderDto.getOrderId())
-                    .withAmount(orderDto.getTotalPrice())
-                    .withPaymentType(PaymentType.SENDING.name())
-                    .withStatus(Status.Transaction.SUCCESS.name())
-                    .build();
-            transactionRepo.save(history);
-
-            paymentDto.setCheckout(Status.Checkout.PAID.name());
+            history.setStatus(Status.Transaction.SUCCESS.name());
+            paymentDto.setPaymentStatus(Status.Payment.PAID.name());
             paymentDto.setMessage("Thanh toán thành công");
+            walletRepo.save(wallet);
+            transactionRepo.save(history);
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
         } catch (Exception e) {
-            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
+            history.setStatus(Status.Transaction.FAIL.name());
+            transactionRepo.save(history);
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER, orderDto);
             throw new RuntimeException("thanh toán lỗi vui lòng thử lại.");
         }
     }
 
-    private void handlerOrderRefund(OrderDto orderDto) {
+    @Transactional
+    void handlerOrderRefund(OrderDto orderDto, PaymentDto paymentDto) {
+        Wallet wallet = walletRepo.findBalletByUserId(orderDto.getUserId());
+        TransactionHistory history = TransactionHistory.Builder.aTransactionHistory()
+                .withSenderId(orderDto.getUserId())
+                .withOrderId(orderDto.getOrderId())
+                .withAmount(orderDto.getTotalPrice())
+                .withPaymentType(PaymentType.REFUND.name())
+                .build();
+
         try {
-            Wallet wallet = walletRepo.findBalletByUserId(orderDto.getUserId());
-            TransactionHistory history = new TransactionHistory(
-                    orderDto.getUserId(), orderDto.getOrderId(),
-                    PaymentType.REFUND.name(), orderDto.getTotalPrice()
-            );
             wallet.setBalance(wallet.getBalance() + orderDto.getTotalPrice());
             history.setStatus(Status.Transaction.SUCCESS.name());
+            paymentDto.setPaymentStatus(Status.Payment.REFUNDED.name());
             walletRepo.save(wallet);
             transactionRepo.save(history);
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
         } catch (Exception e) {
+            history.setStatus(Status.Transaction.FAIL.name());
+            transactionRepo.save(history);
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER, orderDto);
             throw new RuntimeException("refund order fail.");
         }
     }
@@ -102,7 +117,7 @@ public class WalletService {
         Wallet wallet = walletRepo.findBalletByUserId(orderDto.getUserId());
         if (wallet == null) {
             paymentDto.setMessage("Tài khoản thanh toán không đúng");
-            paymentDto.setCheckout(Status.Checkout.UNPAID.name());
+            paymentDto.setPaymentStatus(Status.Payment.UNPAID.name());
             rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, paymentDto);
             return null;
         }
@@ -113,40 +128,40 @@ public class WalletService {
     @Transactional
     public TransactionDto transfer(TransactionHistory history) {
         TransactionDto dto = new TransactionDto();
-
-        if (history.getAmount() <= 0) throw new RuntimeException("Số tiền phải lớn hơn 0");
-        Wallet walletSender = walletRepo.findBalletByUserId(history.getSenderId());
-        Wallet walletReceiver = walletRepo.findBalletByUserId(history.getReceiverId());
-
-        if (walletSender == null) throw new NotFoundException("wallet sender not found!");
-        if (walletReceiver == null) throw new NotFoundException("wallet receiver not found!");
-        if (walletSender.getBalance() < history.getAmount()) throw new RuntimeException("Tài khoản không đủ");
-
+        TransactionHistory historySave = TransactionHistory.Builder.aTransactionHistory()
+                .withSenderId(history.getSenderId())
+                .withReceiverId(history.getReceiverId())
+                .withMessage(history.getMessage())
+                .withPaymentType(PaymentType.SENDING.name())
+                .build();
         try {
+
+            if (history.getAmount() <= 0) {
+                historySave.setStatus(Status.Transaction.FAIL.name());
+                transactionRepo.save(historySave);
+                throw new RuntimeException("Số tiền phải lớn hơn 0");
+            }
+            Wallet walletSender = walletRepo.findBalletByUserId(history.getSenderId());
+            Wallet walletReceiver = walletRepo.findBalletByUserId(history.getReceiverId());
+
+            if (walletSender == null) throw new NotFoundException("wallet sender not found!");
+            if (walletReceiver == null) throw new NotFoundException("wallet receiver not found!");
+            if (walletSender.getBalance() < history.getAmount()) throw new RuntimeException("Tài khoản không đủ");
+
+
             walletSender.setBalance(walletSender.getBalance() - history.getAmount());
             walletReceiver.setBalance(walletReceiver.getBalance() + history.getAmount());
-
-            System.out.println(walletReceiver);
-            System.out.println(walletSender);
-
-            walletRepo.save(walletSender);
-            walletRepo.save(walletReceiver);
-
-            TransactionHistory historySave = TransactionHistory.TransactionHistoryBuilder.aTransactionHistory()
-                    .withSenderId(history.getSenderId())
-                    .withReceiverId(history.getReceiverId())
-                    .withMessage(history.getMessage())
-                    .withPaymentType(PaymentType.SENDING.name())
-                    .withStatus(Status.Transaction.SUCCESS.name())
-                    .build();
-
-            transactionRepo.save(historySave);
-
             dto.setSender(walletSender.getName());
             dto.setReceiver(walletReceiver.getName());
             dto.setMessage(history.getMessage());
             dto.setAmount(history.getAmount());
+
+            walletRepo.save(walletSender);
+            walletRepo.save(walletReceiver);
+            transactionRepo.save(historySave);
         } catch (Exception e) {
+            historySave.setStatus(Status.Transaction.FAIL.name());
+            transactionRepo.save(historySave);
             throw new RuntimeException(e.getMessage());
         }
 

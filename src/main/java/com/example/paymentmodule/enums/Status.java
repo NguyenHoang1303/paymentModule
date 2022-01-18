@@ -3,7 +3,7 @@ package com.example.paymentmodule.enums;
 public enum Status {
     ACTIVE, DELETE;
 
-    public enum Checkout {
+    public enum Payment {
         PAID, UNPAID, REFUND, REFUNDED
     }
 
