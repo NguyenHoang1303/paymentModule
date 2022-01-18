@@ -2,6 +2,8 @@ package com.example.paymentmodule.dto;
 
 import lombok.*;
 
+import java.util.HashMap;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -11,8 +13,9 @@ public class OrderDto {
 
     private Long orderId;
     private Long userId;
+    private HashMap<Long, Integer> productAndQuantity;
     private double totalPrice;
-    private int checkOut;
-    private int status;
+    private String checkout;
+    private String status;
     private String device_token;
 }

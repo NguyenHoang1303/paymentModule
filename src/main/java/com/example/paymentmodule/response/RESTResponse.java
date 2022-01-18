@@ -11,6 +11,11 @@ import java.util.List;
  * Không chứa http status code vì phải là tham số trong spring ResponseEntity.
  * */
 public class RESTResponse {
+    public static String STATUS = "status";
+    public static String MESSAGE = "message";
+    public static String DATA = "data";
+    public static String ERRORS = "errors";
+    public static String PAGINATION = "pagination";
 
     private HashMap<String, Object> response;
 
@@ -65,11 +70,11 @@ public class RESTResponse {
 
         public HashMap<String, Object> build() {
             RESTResponse restResponse = new RESTResponse();
-            restResponse.addResponse("status", this.status);
-            restResponse.addResponse("message", this.message);
-            String errorKey = "error";
+            restResponse.addResponse(DATA, this.status);
+            restResponse.addResponse(MESSAGE, this.message);
+            String errorKey = DATA;
             if (this.errors.size() > 1) {
-                errorKey = "errors";
+                errorKey = ERRORS;
             }
             restResponse.addResponse(errorKey, this.errors);
             return restResponse.getResponse();
@@ -82,8 +87,8 @@ public class RESTResponse {
         private String message;
 
         public SimpleError() {
-            this.code = 400;
-            this.message = "fail";
+            this.code = HttpStatus.BAD_REQUEST.value();
+            this.message = HttpStatus.BAD_REQUEST.name();
         }
 
         public SimpleError setCode(int code) {
@@ -98,9 +103,9 @@ public class RESTResponse {
 
         public HashMap<String, Object> build() {
             RESTResponse restResponse = new RESTResponse();
-            restResponse.addResponse("status", this.code);
-            restResponse.addResponse("message", this.message);
-            restResponse.addResponse("data", new ArrayList<>());
+            restResponse.addResponse(STATUS, this.code);
+            restResponse.addResponse(MESSAGE, this.message);
+            restResponse.addResponse(DATA, new ArrayList<>());
             return restResponse.getResponse();
         }
     }
@@ -115,7 +120,7 @@ public class RESTResponse {
 
         public Success() {
             this.status = HttpStatus.OK.value();
-            this.message = "Success";
+            this.message = HttpStatus.OK.name();
             this.data = new ArrayList<>();
         }
 
@@ -146,50 +151,30 @@ public class RESTResponse {
 
         public HashMap<String, Object> build() {
             RESTResponse restResponse = new RESTResponse();
-            restResponse.addResponse("status", this.status);
-            restResponse.addResponse("message", this.message);
+            restResponse.addResponse(STATUS, this.status);
+            restResponse.addResponse(MESSAGE, this.message);
             if (this.data.size() == 1) {
-                restResponse.addResponse("data", this.data.get(0));
+                restResponse.addResponse(DATA, this.data.get(0));
 
             } else {
-                restResponse.addResponse("data", this.data);
+                restResponse.addResponse(DATA, this.data);
             }
             if (this.pagination != null) {
-                restResponse.addResponse("pagination", this.pagination);
+                restResponse.addResponse(PAGINATION, this.pagination);
             }
             return restResponse.getResponse();
         }
 
         public HashMap<String, Object> buildData() {
             RESTResponse restResponse = new RESTResponse();
-            restResponse.addResponse("status", this.status);
-            restResponse.addResponse("message", this.message);
-            restResponse.addResponse("data", this.data);
+            restResponse.addResponse(DATA, this.status);
+            restResponse.addResponse(MESSAGE, this.message);
+            restResponse.addResponse(DATA, this.data);
             if (this.pagination != null) {
-                restResponse.addResponse("pagination", this.pagination);
+                restResponse.addResponse(PAGINATION, this.pagination);
             }
             return restResponse.getResponse();
         }
 
-//        System.out.println("Error example: " + new Gson().toJson(
-//                new Error()
-//                        .setStatus(HttpStatus.BAD_REQUEST.value())
-//                        .setMessage("Everything is going to be !okie")
-//                        .addError("title", "It required")
-//                        .addError("content", "Required too")
-//                        .build()));
-//
-//        System.out.println("Simple error example: " + new Gson().toJson(
-//                new SimpleError()
-//                        .setCode(1)
-//                        .setMessage("Yolo oko")
-//                        .build()));
-//        System.out.println("Success response example: " + new Gson().toJson(
-//                new Success()
-//                        .setPagination(new RESTPagination(2, 10, 4))
-//                        .addData(new Order())
-//                        .addData(new Order())
-//                        .setStatus(HttpStatus.OK.value())
-//                        .build()));
     }
 }
