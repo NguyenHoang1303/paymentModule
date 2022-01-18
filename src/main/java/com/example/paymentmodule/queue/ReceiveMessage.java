@@ -2,7 +2,7 @@ package com.example.paymentmodule.queue;
 
 
 import com.example.paymentmodule.dto.OrderDto;
-import com.example.paymentmodule.service.WalletService;
+import com.example.paymentmodule.service.WalletServiceImpl;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -13,7 +13,7 @@ import static com.example.paymentmodule.queue.Config.QUEUE_ORDER;
 public class ReceiveMessage {
 
     @Autowired
-    WalletService walletService;
+    WalletServiceImpl walletService;
 
     @RabbitListener(queues = {QUEUE_ORDER})
     public void getInfoOrder(OrderDto orderDto) {

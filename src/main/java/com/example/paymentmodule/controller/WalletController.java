@@ -5,7 +5,7 @@ import com.example.paymentmodule.entity.Wallet;
 import com.example.paymentmodule.repo.TransactionRepo;
 import com.example.paymentmodule.repo.WalletRepo;
 import com.example.paymentmodule.response.RESTResponse;
-import com.example.paymentmodule.service.WalletService;
+import com.example.paymentmodule.service.WalletServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +25,7 @@ public class WalletController {
     TransactionRepo transactionRepo;
 
     @Autowired
-    WalletService walletService;
+    WalletServiceImpl walletService;
 
     @RequestMapping(path = "account/{userId}", method = RequestMethod.GET)
     public ResponseEntity find(@PathVariable int userId) {
