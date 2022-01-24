@@ -4,15 +4,18 @@ import com.example.paymentmodule.dto.TransactionDto;
 import com.example.paymentmodule.entity.TransactionHistory;
 import com.example.paymentmodule.entity.Wallet;
 import com.example.paymentmodule.enums.PaymentType;
-import com.example.paymentmodule.enums.Status;
+import com.example.paymentmodule.enums.TransactionStatus;
 import com.example.paymentmodule.exception.NotFoundException;
 import com.example.paymentmodule.repo.TransactionRepo;
 import com.example.paymentmodule.repo.WalletRepo;
+import com.example.paymentmodule.translate.TranslationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+
+import static com.example.paymentmodule.constant.KeyI18n.*;
 
 @Service
 public class WalletServiceImpl implements WalletService {
@@ -23,6 +26,8 @@ public class WalletServiceImpl implements WalletService {
     @Autowired
     TransactionRepo transactionRepo;
 
+    @Autowired
+    TranslationService translationService;
 
     @Override
     public Wallet save(Wallet wallet) {
@@ -43,17 +48,17 @@ public class WalletServiceImpl implements WalletService {
         try {
 
             if (history.getAmount().compareTo(BigDecimal.valueOf(0)) <= 0) {
-                historySave.setStatus(Status.Transaction.FAIL.name());
+                historySave.setStatus(TransactionStatus.FAIL.name());
                 transactionRepo.save(historySave);
-                throw new RuntimeException("Số tiền phải lớn hơn 0");
+                throw new RuntimeException(translationService.translate(CHECK_INFO_PAYMENT));
             }
             Wallet walletSender = walletRepo.findBalletByUserId(history.getSenderId());
             Wallet walletReceiver = walletRepo.findBalletByUserId(history.getReceiverId());
 
-            if (walletSender == null) throw new NotFoundException("Tài khoản người gửi không đúng!");
-            if (walletReceiver == null) throw new NotFoundException("Tài khoản nhận gửi không đúng!");
+            if (walletSender == null) throw new NotFoundException(translationService.translate(USER_NOTFOUND));
+            if (walletReceiver == null) throw new NotFoundException(translationService.translate(USER_NOTFOUND));
             if (walletSender.getBalance().compareTo(history.getAmount()) < 0)
-                throw new RuntimeException("Tài khoản không đủ");
+                throw new RuntimeException(translationService.translate(NOT_ENOUGH_BALANCE));
 
 
             walletSender.setBalance(walletSender.getBalance().subtract(history.getAmount()));
@@ -67,7 +72,7 @@ public class WalletServiceImpl implements WalletService {
             walletRepo.save(walletReceiver);
             transactionRepo.save(historySave);
         } catch (Exception e) {
-            historySave.setStatus(Status.Transaction.FAIL.name());
+            historySave.setStatus(TransactionStatus.FAIL.name());
             transactionRepo.save(historySave);
             throw new RuntimeException(e.getMessage());
         }
