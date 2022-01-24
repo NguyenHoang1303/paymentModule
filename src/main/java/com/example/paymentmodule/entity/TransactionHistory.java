@@ -1,12 +1,10 @@
 package com.example.paymentmodule.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Getter
@@ -14,6 +12,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity(name = "transaction_history")
+@ToString
 public class TransactionHistory {
     @Id
     @Column(name = "id", nullable = false)
@@ -30,7 +29,7 @@ public class TransactionHistory {
     private Long orderId;
     private String paymentType;  // gửi tiền, refund
     @NotNull(message = "Amount is required")
-    private double amount;
+    private BigDecimal amount;
     private String status;
 
     private String message;
@@ -39,7 +38,7 @@ public class TransactionHistory {
 
 
 
-    public TransactionHistory(Long senderId, Long orderId, String paymentType, double amount) {
+    public TransactionHistory(Long senderId, Long orderId, String paymentType, BigDecimal amount) {
         this.senderId = senderId;
         this.orderId = orderId;
         this.paymentType = paymentType;
@@ -53,7 +52,7 @@ public class TransactionHistory {
         private Long receiverId = 1L;
         private Long orderId;
         private String paymentType;  // gửi tiền, refund
-        private double amount;
+        private BigDecimal amount;
         private String status;
         private String message;
         private LocalDate updatedAt;
@@ -90,7 +89,7 @@ public class TransactionHistory {
             return this;
         }
 
-        public Builder withAmount(double amount) {
+        public Builder withAmount(BigDecimal amount) {
             this.amount = amount;
             return this;
         }

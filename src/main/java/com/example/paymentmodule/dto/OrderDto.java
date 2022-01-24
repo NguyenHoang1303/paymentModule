@@ -2,7 +2,8 @@ package com.example.paymentmodule.dto;
 
 import lombok.*;
 
-import java.util.HashMap;
+import java.math.BigDecimal;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -13,9 +14,16 @@ public class OrderDto {
 
     private Long orderId;
     private Long userId;
-    private HashMap<Long, Integer> productAndQuantity;
-    private double totalPrice;
+    private Set<OrderDetailDto> orderDetails;
+    private BigDecimal totalPrice;
     private String paymentStatus;
+    private String inventoryStatus;
     private String orderStatus;
     private String device_token;
+    private String message;
+
+    public boolean validationPayment(){
+        return this.totalPrice.compareTo(BigDecimal.valueOf(0)) > 0
+                && this.orderId != null && this.userId != null && this.paymentStatus != null;
+    }
 }

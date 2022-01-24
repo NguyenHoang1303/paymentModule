@@ -17,25 +17,41 @@ import static org.springframework.amqp.core.BindingBuilder.bind;
 @Configuration
 public class Config {
 
-
-    public static final String QUEUE_ORDER = "direct.queue.order";
-    public static final String QUEUE_PAY = "direct.queue.pay";
-
     public static final String DIRECT_EXCHANGE = "direct.exchange";
-    public static final String DIRECT_ROUTING_KEY_ORDER = "direct.routingKeyOrder";
+
+    public static final String QUEUE_ORDER_PAY = "direct.queue.order.pay";
+    public static final String QUEUE_ORDER_INVENTORY = "direct.queue.order.inventory";
+    public static final String QUEUE_PAY = "direct.queue.pay";
+    public static final String QUEUE_INVENTORY = "direct.queue.inventory";
+
+
+
+    public static final String DIRECT_ROUTING_KEY_ORDER_PAY = "direct.routingKeyOrder.pay";
+    public static final String DIRECT_ROUTING_KEY_ORDER_INVENTORY = "direct.routingKeyOrder.inventory";
     public static final String DIRECT_ROUTING_KEY_PAY = "direct.routingKeyPay";
+    public static final String DIRECT_ROUTING_KEY_INVENTORY = "routingKeyInventory";
+    public static final String DIRECT_SHARE_ROUTING_KEY = "routingKeyShare";
 
 
     @Bean
-    public Declarables directBinding() {
-        Queue queueOrder = new Queue(QUEUE_ORDER);
-        Queue queuePay = new Queue(QUEUE_PAY);
+    public Declarables binding() {
+        Queue directQueueOrderPay = new Queue(QUEUE_ORDER_PAY);
+        Queue directQueueOrderInventory = new Queue(QUEUE_ORDER_INVENTORY);
+        Queue directQueuePay = new Queue(QUEUE_PAY);
+        Queue directQueueInventory = new Queue(QUEUE_INVENTORY);
         DirectExchange directExchange = new DirectExchange(DIRECT_EXCHANGE);
         return new Declarables(
-                queueOrder,
+                directQueueOrderPay,
+                directQueueOrderInventory,
+                directQueuePay,
+                directQueueInventory,
                 directExchange,
-                bind(queueOrder).to(directExchange).with(DIRECT_ROUTING_KEY_ORDER),
-                bind(queuePay).to(directExchange).with(DIRECT_ROUTING_KEY_PAY)
+                bind(directQueueOrderPay).to(directExchange).with(DIRECT_ROUTING_KEY_ORDER_PAY),
+                bind(directQueueOrderInventory).to(directExchange).with(DIRECT_ROUTING_KEY_ORDER_INVENTORY),
+                bind(directQueuePay).to(directExchange).with(DIRECT_ROUTING_KEY_PAY),
+                bind(directQueueInventory).to(directExchange).with(DIRECT_ROUTING_KEY_INVENTORY),
+                bind(directQueuePay).to(directExchange).with(DIRECT_SHARE_ROUTING_KEY),
+                bind(directQueueInventory).to(directExchange).with(DIRECT_SHARE_ROUTING_KEY)
         );
     }
 

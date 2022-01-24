@@ -4,7 +4,7 @@ public enum Status {
     ACTIVE, DELETE;
 
     public enum Payment {
-        PAID, UNPAID, REFUND, REFUNDED
+        PAID, UNPAID, REFUND, REFUNDED, FAIL
     }
 
     public enum Transaction {

@@ -2,6 +2,8 @@ package com.example.paymentmodule.dto;
 
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -11,6 +13,6 @@ public class TransactionDto {
 
     private String sender;
     private String receiver;
-    private double amount;
+    private BigDecimal amount;
     private String message;
 }
