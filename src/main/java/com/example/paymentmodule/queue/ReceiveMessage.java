@@ -1,7 +1,7 @@
 package com.example.paymentmodule.queue;
 
 
-import com.example.paymentmodule.dto.OrderDto;
+import common.event.OrderEvent;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -15,9 +15,8 @@ public class ReceiveMessage {
     ConsumerService consumerService;
 
     @RabbitListener(queues = {QUEUE_PAY})
-    public void getInfoOrder(OrderDto orderDto) {
-        System.out.println("Module Payment nhận thông tin order: " + orderDto);
-        consumerService.handlerPayment(orderDto);
+    public void getInfoOrder(OrderEvent orderEvent) {
+        consumerService.handlerPayment(orderEvent);
     }
 
 }

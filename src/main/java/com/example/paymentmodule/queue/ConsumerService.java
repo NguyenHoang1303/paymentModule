@@ -1,12 +1,13 @@
 package com.example.paymentmodule.queue;
 
-import com.example.paymentmodule.dto.OrderDto;
 import com.example.paymentmodule.entity.TransactionHistory;
 import com.example.paymentmodule.entity.Wallet;
+import com.example.paymentmodule.enums.PaymentStatus;
 import com.example.paymentmodule.enums.PaymentType;
 import com.example.paymentmodule.enums.Status;
 import com.example.paymentmodule.repo.TransactionRepo;
 import com.example.paymentmodule.service.WalletService;
+import common.event.OrderEvent;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,91 +32,92 @@ public class ConsumerService {
     RabbitTemplate rabbitTemplate;
 
     @Transactional
-    public void handlerPayment(OrderDto orderDto) {
-        if (!orderDto.validationPayment()){
-            orderDto.setMessage("Kiểm tra thông tin đơn hàng");
-            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER_PAY, orderDto);
+    public void handlerPayment(OrderEvent orderEvent) {
+        orderEvent.setQueueName(QUEUE_PAY);
+        if (!orderEvent.validationPayment()) {
+            orderEvent.setMessage("Kiểm tra thông tin đơn hàng");
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER, orderEvent);
             return;
         }
-        if (orderDto.getPaymentStatus().equals(Status.Payment.REFUND.name())) {
-            handlerOrderRefund(orderDto);
+        if (orderEvent.getPaymentStatus().equals(PaymentStatus.REFUND.name())) {
+            handlerOrderRefund(orderEvent);
             return;
         }
-        if (orderDto.getPaymentStatus().equals(Status.Payment.UNPAID.name())) {
-            handlerOrderUnpaid(orderDto);
+        if (orderEvent.getPaymentStatus().equals(PaymentStatus.UNPAID.name())) {
+            handlerOrderUnpaid(orderEvent);
         }
     }
 
     @Transactional
-    void handlerOrderRefund(OrderDto orderDto) {
-        Wallet wallet = checkWalletExist(orderDto);
+    void handlerOrderRefund(OrderEvent orderEvent) {
+        Wallet wallet = checkWalletExist(orderEvent);
         if (wallet == null) return;
         TransactionHistory history = TransactionHistory.Builder.aTransactionHistory()
-                .withSenderId(orderDto.getUserId())
-                .withOrderId(orderDto.getOrderId())
-                .withAmount(orderDto.getTotalPrice())
+                .withSenderId(orderEvent.getUserId())
+                .withOrderId(orderEvent.getOrderId())
+                .withAmount(orderEvent.getTotalPrice())
                 .withPaymentType(PaymentType.REFUND.name())
                 .build();
 
         try {
-            wallet.setBalance(wallet.getBalance().add(orderDto.getTotalPrice()));
+            wallet.setBalance(wallet.getBalance().add(orderEvent.getTotalPrice()));
             history.setStatus(Status.Transaction.SUCCESS.name());
-            orderDto.setPaymentStatus(Status.Payment.REFUNDED.name());
+            orderEvent.setPaymentStatus(Status.Payment.REFUNDED.name());
             walletService.save(wallet);
-             transactionRepo.save(history);
-            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER_PAY, orderDto);
+            transactionRepo.save(history);
+
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER, orderEvent);
         } catch (Exception e) {
             history.setStatus(Status.Transaction.FAIL.name());
             transactionRepo.save(history);
-            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, orderDto);
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, orderEvent);
             throw new RuntimeException("refund order fail.");
         }
     }
 
-    private void handlerOrderUnpaid(OrderDto orderDto) {
-        Wallet wallet = checkWalletExist(orderDto);
+    void handlerOrderUnpaid(OrderEvent orderEvent) {
+        Wallet wallet = checkWalletExist(orderEvent);
         if (wallet == null) return;
 
-        BigDecimal totalPrice = orderDto.getTotalPrice();
+        BigDecimal totalPrice = orderEvent.getTotalPrice();
         BigDecimal balance = wallet.getBalance();
 
         if (totalPrice.compareTo(balance) > 0) {
-            orderDto.setMessage("Số dư ví không đủ");
-            orderDto.setPaymentStatus(Status.Payment.FAIL.name());
-            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER_PAY, orderDto);
+            orderEvent.setMessage("Số dư ví không đủ");
+            orderEvent.setPaymentStatus(PaymentStatus.FAIL.name());
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER, orderEvent);
             return;
         }
-
         TransactionHistory history = TransactionHistory.Builder
                 .aTransactionHistory()
-                .withSenderId(orderDto.getUserId())
-                .withOrderId(orderDto.getOrderId())
-                .withAmount(orderDto.getTotalPrice())
+                .withSenderId(orderEvent.getUserId())
+                .withOrderId(orderEvent.getOrderId())
+                .withAmount(orderEvent.getTotalPrice())
                 .withPaymentType(PaymentType.SENDING.name())
                 .build();
 
         try {
             wallet.setBalance(balance.subtract(totalPrice));
             history.setStatus(Status.Transaction.SUCCESS.name());
-            orderDto.setPaymentStatus(Status.Payment.PAID.name());
-            orderDto.setMessage("Thanh toán thành công");
+            orderEvent.setPaymentStatus(Status.Payment.PAID.name());
+            orderEvent.setMessage("Thanh toán thành công");
             walletService.save(wallet);
             transactionRepo.save(history);
-            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER_PAY, orderDto);
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER, orderEvent);
         } catch (Exception e) {
             history.setStatus(Status.Transaction.FAIL.name());
             transactionRepo.save(history);
-            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, orderDto);
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_PAY, orderEvent);
             throw new RuntimeException("thanh toán lỗi vui lòng thử lại.");
         }
     }
 
-    private Wallet checkWalletExist(OrderDto orderDto) {
-        Wallet wallet = walletService.findBalletByUserId(orderDto.getUserId());
+    private Wallet checkWalletExist(OrderEvent orderEvent) {
+        Wallet wallet = walletService.findBalletByUserId(orderEvent.getUserId());
         if (wallet == null) {
-            orderDto.setMessage("Tài khoản thanh toán không đúng");
-            orderDto.setPaymentStatus(Status.Payment.UNPAID.name());
-            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER_PAY, orderDto);
+            orderEvent.setMessage("Tài khoản thanh toán không đúng");
+            orderEvent.setPaymentStatus(Status.Payment.FAIL.name());
+            rabbitTemplate.convertAndSend(DIRECT_EXCHANGE, DIRECT_ROUTING_KEY_ORDER, orderEvent);
             return null;
         }
         return wallet;
