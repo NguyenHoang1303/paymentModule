@@ -29,6 +29,7 @@ public class WalletController {
 
     @RequestMapping(path = "account/{userId}", method = RequestMethod.GET)
     public ResponseEntity find(@PathVariable int userId) {
+        userId = 451691;
         Wallet wallet = walletRepo.findBalletByUserId((long) userId);
         return new ResponseEntity<>(new RESTResponse.Success()
                 .addData(wallet)
@@ -36,11 +37,20 @@ public class WalletController {
     }
 
     @RequestMapping(path = "transfer", method = RequestMethod.POST)
-    public ResponseEntity send(@Valid @RequestBody TransactionHistory history) {
+    public ResponseEntity send(@RequestBody TransactionHistory history) {
         return new ResponseEntity<>(new RESTResponse.Success()
                 .addData(walletService.transfer(history))
                 .build(), HttpStatus.OK);
     }
+
+    @RequestMapping(path = "account/transaction", method = RequestMethod.GET)
+    public ResponseEntity send(@RequestParam(name = "userId") int userId) {
+        userId = 451691;
+        return new ResponseEntity<>(new RESTResponse.Success()
+                .addData(transactionRepo.findTransactionHistoryBySenderId((long) userId))
+                .build(), HttpStatus.OK);
+    }
+
 
 
 }

@@ -10,6 +10,8 @@ import com.example.paymentmodule.service.WalletService;
 import com.example.paymentmodule.translate.TranslationService;
 import common.event.OrderEvent;
 import lombok.extern.log4j.Log4j2;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -37,7 +39,7 @@ public class ConsumerService {
     TranslationService translationService;
 
     @Transactional
-    public void handlerPayment(OrderEvent orderEvent) {
+    public void handlerPayment(@NotNull OrderEvent orderEvent) {
         orderEvent.setQueueName(QUEUE_PAY);
         if (!orderEvent.validationPayment()) {
             orderEvent.setMessage(translationService.translate(CHECK_INFO_PAYMENT));
@@ -67,6 +69,7 @@ public class ConsumerService {
         try {
             wallet.setBalance(wallet.getBalance().add(orderEvent.getTotalPrice()));
             history.setStatus(TransactionStatus.SUCCESS.name());
+            history.setMessage(translationService.translate(REFUND_SUCCESS));
             orderEvent.setPaymentStatus(PaymentStatus.REFUNDED.name());
             walletService.save(wallet);
             transactionRepo.save(history);
@@ -104,6 +107,7 @@ public class ConsumerService {
         try {
             wallet.setBalance(balance.subtract(totalPrice));
             history.setStatus(TransactionStatus.SUCCESS.name());
+            history.setMessage(translationService.translate(PAID));
             orderEvent.setPaymentStatus(PaymentStatus.PAID.name());
             orderEvent.setMessage(translationService.translate(PAID));
             walletService.save(wallet);
@@ -117,7 +121,7 @@ public class ConsumerService {
         }
     }
 
-    private Wallet checkWalletExist(OrderEvent orderEvent) {
+    private @Nullable Wallet checkWalletExist(@NotNull OrderEvent orderEvent) {
         Wallet wallet = walletService.findBalletByUserId(orderEvent.getUserId());
         if (wallet == null) {
             orderEvent.setMessage(translationService.translate(USER_NOTFOUND));
