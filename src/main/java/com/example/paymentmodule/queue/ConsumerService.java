@@ -60,7 +60,8 @@ public class ConsumerService {
         Wallet wallet = checkWalletExist(orderEvent);
         if (wallet == null) return;
         TransactionHistory history = TransactionHistory.Builder.aTransactionHistory()
-                .withSenderId(orderEvent.getUserId())
+                .withReceiverId(orderEvent.getUserId())
+                .withSenderId(1L)
                 .withOrderId(orderEvent.getOrderId())
                 .withAmount(orderEvent.getTotalPrice())
                 .withPaymentType(PaymentType.REFUND.name())
@@ -99,6 +100,7 @@ public class ConsumerService {
         TransactionHistory history = TransactionHistory.Builder
                 .aTransactionHistory()
                 .withSenderId(orderEvent.getUserId())
+                .withReceiverId(1l)
                 .withOrderId(orderEvent.getOrderId())
                 .withAmount(orderEvent.getTotalPrice())
                 .withPaymentType(PaymentType.SENDING.name())

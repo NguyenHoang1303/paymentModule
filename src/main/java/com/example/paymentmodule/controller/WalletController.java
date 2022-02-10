@@ -44,7 +44,7 @@ public class WalletController {
     }
 
     @RequestMapping(path = "account/transaction", method = RequestMethod.GET)
-    public ResponseEntity send(@RequestParam(name = "userId") int userId) {
+    public ResponseEntity getTransaction(@RequestParam(name = "userId") int userId) {
         userId = 451691;
         return new ResponseEntity<>(new RESTResponse.Success()
                 .addData(transactionRepo.findTransactionHistoryBySenderId((long) userId))

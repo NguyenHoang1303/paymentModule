@@ -6,6 +6,7 @@ import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -24,7 +25,7 @@ public class TransactionHistory {
 
     @Column(columnDefinition = "bigint default 1")
     @NotNull(message = "Receiver is required")
-    private Long receiverId = 1L;
+    private Long receiverId;
 
     private Long orderId;
     private String paymentType;  // gửi tiền, refund
@@ -33,8 +34,8 @@ public class TransactionHistory {
     private String status;
 
     private String message;
-    private LocalDate createdAt;
-    private LocalDate updatedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
 
 
@@ -43,7 +44,7 @@ public class TransactionHistory {
         this.orderId = orderId;
         this.paymentType = paymentType;
         this.amount = amount;
-        this.createdAt = LocalDate.now();
+        this.createdAt = LocalDateTime.now();
     }
 
     public static final class Builder {
@@ -55,7 +56,7 @@ public class TransactionHistory {
         private BigDecimal amount;
         private String status;
         private String message;
-        private LocalDate updatedAt;
+        private LocalDateTime updatedAt;
 
         private Builder() {
         }
@@ -104,7 +105,7 @@ public class TransactionHistory {
             return this;
         }
 
-        public Builder withUpdatedAt(LocalDate updatedAt) {
+        public Builder withUpdatedAt(LocalDateTime updatedAt) {
             this.updatedAt = updatedAt;
             return this;
         }
@@ -119,7 +120,7 @@ public class TransactionHistory {
             transactionHistory.setAmount(amount);
             transactionHistory.setStatus(status);
             transactionHistory.setMessage(message);
-            transactionHistory.setCreatedAt(LocalDate.now());
+            transactionHistory.setCreatedAt(LocalDateTime.now());
             transactionHistory.setUpdatedAt(updatedAt);
             return transactionHistory;
         }

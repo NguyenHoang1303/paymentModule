@@ -11,7 +11,10 @@ public interface TransactionRepo extends JpaRepository<TransactionHistory, Long>
 
     TransactionHistory findTransactionHistoryByOrderId(Long orderId);
 
-    @Query(value = "SELECT * FROM transaction_history WHERE transaction_history.sender_id = 451691 ORDER BY transaction_history.id DESC", nativeQuery = true)
+    @Query(value = "SELECT * FROM transaction_history " +
+            "WHERE transaction_history.sender_id = 451691 " +
+            "OR transaction_history.receiver_id = 451691 " +
+            "ORDER BY transaction_history.id DESC", nativeQuery = true)
     List<TransactionHistory> findTransactionHistoryBySenderId(Long senderId);
 
 }
